@@ -6,17 +6,31 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { useMedicinesList, useDeleteMedicine } from '@/hooks/useMedicines';
+import { useMedicineFilters } from '@/hooks/useMedicineFilters';
 import { Medicine } from '@/services/medicinesApi';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { data: medicines, isLoading, isError, refetch } = useMedicinesList();
   const deleteMutation = useDeleteMedicine();
+
+  const {
+    filteredMedicines,
+    nameQuery,
+    setNameQuery,
+    dateSort,
+    cycleDateSort,
+    isFilterActive,
+    clearFilters,
+    filteredCount,
+    totalCount,
+  } = useMedicineFilters(medicines);
 
   function handleDelete(id: number) {
     Alert.alert(
@@ -39,6 +53,15 @@ export default function HomeScreen() {
       ]
     );
   }
+
+  const sortLabel =
+    dateSort === 'asc'
+      ? 'Vencimento \u2191'
+      : dateSort === 'desc'
+      ? 'Vencimento \u2193'
+      : 'Ordenar por vencimento';
+
+  const sortActive = dateSort !== 'none';
 
   if (isLoading) {
     return (
@@ -68,8 +91,67 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Filter bar */}
+      <View style={styles.filterBar}>
+        {/* Name search row */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputWrapper}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar por nome..."
+              placeholderTextColor="#9ca3af"
+              value={nameQuery}
+              onChangeText={setNameQuery}
+              autoCorrect={false}
+              accessibilityLabel="Buscar remédio por nome"
+              accessibilityHint="Digite o nome do remédio para filtrar a lista"
+            />
+            {nameQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setNameQuery('')}
+                style={styles.clearInputButton}
+                accessibilityLabel="Limpar busca"
+              >
+                <Text style={styles.clearInputButtonText}>×</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Sort button row */}
+        <View style={styles.sortRow}>
+          <TouchableOpacity
+            onPress={cycleDateSort}
+            style={[styles.sortButton, sortActive && styles.sortButtonActive]}
+            accessibilityLabel={sortLabel}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.sortButtonText, sortActive && styles.sortButtonTextActive]}>
+              {sortLabel}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Active filter summary */}
+        {isFilterActive && (
+          <View style={styles.filterSummaryRow}>
+            <Text style={styles.filterCountText}>
+              {filteredCount} de {totalCount} remédios
+            </Text>
+            <TouchableOpacity
+              onPress={clearFilters}
+              style={styles.clearFiltersButton}
+              accessibilityLabel="Limpar todos os filtros"
+              accessibilityRole="button"
+            >
+              <Text style={styles.clearFiltersButtonText}>Limpar filtros</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       <FlatList
-        data={medicines}
+        data={filteredMedicines}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
@@ -143,6 +225,84 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  // Filter bar styles
+  filterBar: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  searchRow: {
+    marginBottom: 8,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  clearInputButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  clearInputButtonText: {
+    fontSize: 20,
+    color: '#6b7280',
+    lineHeight: 22,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  sortButton: {
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  sortButtonActive: {
+    backgroundColor: '#3b82f6',
+  },
+  sortButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#3b82f6',
+  },
+  sortButtonTextActive: {
+    color: '#ffffff',
+  },
+  filterSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  filterCountText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  clearFiltersButtonText: {
+    fontSize: 13,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  // List styles
   list: {
     padding: 16,
   },
