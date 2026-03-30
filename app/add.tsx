@@ -11,66 +11,41 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+import { useCreateMedicine } from '@/hooks/useMedicines';
 
 export default function AddScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleAdd = async () => {
-    setError('');
+  const createMutation = useCreateMedicine();
 
+  function handleAdd() {
     if (!name.trim()) {
-      setError('Nome é obrigatório');
+      Alert.alert('Validação', 'Nome é obrigatório');
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/medicines`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          ...(expiryDate && { expiry_date: expiryDate }),
-        }),
-      });
-
-      if (response.ok) {
-        Alert.alert('Sucesso', 'Remédio adicionado', [
-          {
-            text: 'OK',
-            onPress: () => {
-              setName('');
-              setExpiryDate('');
-              router.back();
-            },
-          },
-        ]);
-      } else {
-        setError('Erro ao adicionar remédio');
+    createMutation.mutate(
+      { name: name.trim(), expiry_date: expiryDate || undefined },
+      {
+        onSuccess: () => {
+          // Navigate immediately — TanStack Query's cache invalidation in
+          // useCreateMedicine fires at the same time, so the list screen will
+          // refetch automatically once we land back on it.
+          router.replace('/');
+        },
+        onError: () => {
+          Alert.alert('Erro', 'Não foi possível adicionar o remédio');
+        },
       }
-    } catch (err) {
-      setError('Erro de conexão');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <Text style={styles.title}>Adicionar Remédio</Text>
-
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
 
         <View style={styles.form}>
           <Text style={styles.label}>Nome do Remédio *</Text>
@@ -79,7 +54,7 @@ export default function AddScreen() {
             placeholder="Ex: Dipirona 500mg"
             value={name}
             onChangeText={setName}
-            editable={!loading}
+            editable={!createMutation.isPending}
           />
 
           <Text style={styles.label}>Data de Vencimento (opcional)</Text>
@@ -88,16 +63,16 @@ export default function AddScreen() {
             placeholder="YYYY-MM-DD"
             value={expiryDate}
             onChangeText={setExpiryDate}
-            editable={!loading}
+            editable={!createMutation.isPending}
           />
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, createMutation.isPending && styles.buttonDisabled]}
             onPress={handleAdd}
-            disabled={loading}
+            disabled={createMutation.isPending}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Adicionando...' : 'Adicionar'}
+              {createMutation.isPending ? 'Adicionando...' : 'Adicionar'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -120,18 +95,6 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 20,
   },
-  errorBox: {
-    backgroundColor: '#fee2e2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 14,
-  },
   form: {
     gap: 16,
   },
@@ -151,14 +114,14 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   button: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#16a34a',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: {
-    backgroundColor: '#93c5fd',
+    backgroundColor: '#86efac',
   },
   buttonText: {
     color: '#ffffff',

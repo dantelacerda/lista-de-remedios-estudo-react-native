@@ -7,126 +7,85 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  Modal,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
-
-interface Medicine {
-  id: number;
-  name: string;
-  expiry_date?: string;
-  created_at?: string;
-}
+import { useMedicineDetail, useUpdateMedicine, useDeleteMedicine } from '@/hooks/useMedicines';
 
 export default function DetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
-  const medicineId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : id;
-  const [medicine, setMedicine] = useState<Medicine | null>(null);
+  const { id: idParam } = useLocalSearchParams<{ id: string }>();
+  const id = Array.isArray(idParam) ? idParam[0] : idParam;
+
+  const { data: medicine, isLoading, isError } = useMedicineDetail(id);
+  const updateMutation = useUpdateMedicine(id);
+  const deleteMutation = useDeleteMedicine();
+
   const [name, setName] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  // Preenche o formulário quando os dados do remédio chegam da API
   useEffect(() => {
-    if (medicineId) {
-      fetchMedicine();
+    if (medicine) {
+      setName(medicine.name);
+      setExpiryDate(medicine.expiry_date?.split('T')[0] ?? '');
     }
-  }, [medicineId]);
+  }, [medicine]);
 
-  const fetchMedicine = async () => {
-    try {
-      console.log('Fetching medicine:', medicineId);
-      const response = await fetch(`${API_BASE_URL}/medicines/${medicineId}`);
-      console.log('Fetch response status:', response.status);
-      const data = await response.json();
-      const med = data.data || data;
-      setMedicine(med);
-      setName(med.name);
-      setExpiryDate(med.expiry_date?.split('T')[0] || '');
-    } catch (err) {
-      setError('Erro ao carregar remédio');
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdate = async () => {
-    setError('');
-
+  function handleUpdate() {
     if (!name.trim()) {
-      setError('Nome é obrigatório');
+      Alert.alert('Validação', 'Nome é obrigatório');
       return;
     }
 
-    setSaving(true);
-    try {
-      console.log('Updating medicine:', medicineId);
-      const response = await fetch(`${API_BASE_URL}/medicines/${medicineId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          ...(expiryDate && { expiry_date: expiryDate }),
-        }),
-      });
-
-      console.log('Update response status:', response.status);
-      if (response.ok) {
-        Alert.alert('Sucesso', 'Remédio atualizado', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      } else {
-        setError('Erro ao atualizar remédio');
+    updateMutation.mutate(
+      { name: name.trim(), expiry_date: expiryDate || undefined },
+      {
+        onSuccess: () => router.replace('/'),
+        onError: () => Alert.alert('Erro', 'Não foi possível atualizar o remédio'),
       }
-    } catch (err) {
-      setError('Erro de conexão');
-      console.error('Update error:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
+    );
+  }
 
-  const handleDelete = async () => {
-    try {
-      await fetch(`${API_BASE_URL}/medicines/${medicineId}`, { method: 'DELETE' });
-      router.back();
-    } catch (err) {
-      console.error('Delete error:', err);
-    }
-  };
+  function confirmDelete() {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        setShowDeleteDialog(false);
+        router.replace('/');
+      },
+      onError: () => {
+        setShowDeleteDialog(false);
+        Alert.alert('Erro', 'Não foi possível deletar o remédio');
+      },
+    });
+  }
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 20 }} />
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#3b82f6" />
       </SafeAreaView>
     );
   }
 
-  if (!medicine) {
+  if (isError || !medicine) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Remédio não encontrado</Text>
+      <SafeAreaView style={styles.centered}>
+        <Text style={styles.errorText}>Remédio não encontrado.</Text>
       </SafeAreaView>
     );
   }
+
+  const isBusy = updateMutation.isPending || deleteMutation.isPending;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <Text style={styles.title}>Editar Remédio</Text>
-
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
 
         <View style={styles.form}>
           <Text style={styles.label}>Nome do Remédio</Text>
@@ -134,7 +93,7 @@ export default function DetailScreen() {
             style={styles.input}
             value={name}
             onChangeText={setName}
-            editable={!saving}
+            editable={!isBusy}
           />
 
           <Text style={styles.label}>Data de Vencimento</Text>
@@ -143,24 +102,25 @@ export default function DetailScreen() {
             placeholder="YYYY-MM-DD"
             value={expiryDate}
             onChangeText={setExpiryDate}
-            editable={!saving}
+            editable={!isBusy}
           />
 
           <TouchableOpacity
-            style={[styles.button, saving && styles.buttonDisabled]}
+            style={[styles.buttonPrimary, isBusy && styles.buttonDisabled]}
             onPress={handleUpdate}
-            disabled={saving}
+            disabled={isBusy}
           >
             <Text style={styles.buttonText}>
-              {saving ? 'Salvando...' : 'Atualizar'}
+              {updateMutation.isPending ? 'Salvando...' : 'Atualizar'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.buttonDelete]}
-            onPress={handleDelete}
+            style={[styles.buttonDanger, isBusy && styles.buttonDisabled]}
+            onPress={() => setShowDeleteDialog(true)}
+            disabled={isBusy}
           >
-            <Text style={styles.buttonDeleteText}>Deletar Remédio</Text>
+            <Text style={styles.buttonText}>Deletar Remédio</Text>
           </TouchableOpacity>
         </View>
 
@@ -173,6 +133,40 @@ export default function DetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showDeleteDialog}
+        onRequestClose={() => setShowDeleteDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Deletar Remédio</Text>
+            <Text style={styles.modalMessage}>
+              Tem certeza que deseja deletar este remédio? Esta ação não pode ser desfeita.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => setShowDeleteDialog(false)}
+                disabled={deleteMutation.isPending}
+              >
+                <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButtonDelete, deleteMutation.isPending && styles.buttonDisabled]}
+                onPress={confirmDelete}
+                disabled={deleteMutation.isPending}
+              >
+                <Text style={styles.buttonText}>
+                  {deleteMutation.isPending ? 'Deletando...' : 'Deletar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -182,6 +176,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9fafb',
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: {
     padding: 16,
   },
@@ -190,18 +189,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
     marginBottom: 20,
-  },
-  errorBox: {
-    backgroundColor: '#fee2e2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 14,
   },
   form: {
     gap: 16,
@@ -222,19 +209,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     color: '#1f2937',
   },
-  button: {
-    backgroundColor: '#3b82f6',
+  buttonPrimary: {
+    backgroundColor: '#16a34a',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
-  buttonDelete: {
+  buttonDanger: {
     backgroundColor: '#ef4444',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -244,10 +230,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  buttonDeleteText: {
-    color: '#ffffff',
+  errorText: {
+    color: '#dc2626',
     fontSize: 16,
-    fontWeight: '600',
   },
   infoBox: {
     backgroundColor: '#dbeafe',
@@ -260,5 +245,54 @@ const styles = StyleSheet.create({
     color: '#1e40af',
     fontSize: 12,
     marginBottom: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButtonCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  modalButtonCancelText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonDelete: {
+    flex: 1,
+    backgroundColor: '#ef4444',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 });

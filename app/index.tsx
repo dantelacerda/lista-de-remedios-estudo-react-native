@@ -1,109 +1,107 @@
-import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-interface Medicine {
-  id: number;
-  name: string;
-  expiry_date?: string;
-}
-
-const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+import { useMedicinesList, useDeleteMedicine } from '@/hooks/useMedicines';
+import { Medicine } from '@/services/medicinesApi';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: medicines, isLoading, isError, refetch } = useMedicinesList();
+  const deleteMutation = useDeleteMedicine();
 
-  useEffect(() => {
-    fetchMedicines();
-  }, []);
+  function handleDelete(id: number) {
+    Alert.alert(
+      'Deletar Remédio',
+      'Tem certeza que deseja deletar este remédio? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Deletar',
+          style: 'destructive',
+          onPress: () =>
+            deleteMutation.mutate(String(id), {
+              onError: () =>
+                Alert.alert(
+                  'Erro ao deletar',
+                  'Não foi possível deletar o remédio. Tente novamente.'
+                ),
+            }),
+        },
+      ]
+    );
+  }
 
-  const fetchMedicines = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}/medicines?per_page=100`);
-      const data = await response.json();
-      setMedicines(data.data || []);
-    } catch (err) {
-      setError('Erro ao carregar remédios');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </SafeAreaView>
+    );
+  }
 
-  const handleDelete = async (id: number) => {
-    try {
-      await fetch(`${API_BASE_URL}/medicines/${id}`, { method: 'DELETE' });
-      setMedicines(medicines.filter(m => m.id !== id));
-    } catch (err) {
-      console.error('Delete error:', err);
-    }
-  };
+  if (isError) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <Text style={styles.errorText}>Erro ao carregar remédios.</Text>
+        <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Tentar novamente</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Meus Remédios</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/add')}
-        >
+        <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add')}>
           <Text style={styles.addButtonText}>+ Adicionar</Text>
         </TouchableOpacity>
       </View>
 
-      {loading && <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 20 }} />}
-
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {!loading && medicines.length === 0 && (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>Nenhum remédio cadastrado</Text>
-        </View>
-      )}
-
-      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-        {medicines.map((medicine) => (
-          <View key={medicine.id} style={styles.card}>
+      <FlatList
+        data={medicines}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.centered}>
+            <Text style={styles.emptyText}>Nenhum remédio cadastrado</Text>
+          </View>
+        }
+        renderItem={({ item }: { item: Medicine }) => (
+          <View style={styles.card}>
             <TouchableOpacity
               style={styles.cardContent}
-              onPress={() => router.push(`/detail/${medicine.id}`)}
+              onPress={() => router.push(`/view/${item.id}`)}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{medicine.name}</Text>
-                {medicine.expiry_date && (
-                  <Text style={styles.cardSubtitle}>
-                    Vencimento: {new Date(medicine.expiry_date).toLocaleDateString('pt-BR')}
-                  </Text>
-                )}
-              </View>
+              <Text style={styles.cardTitle}>{item.name}</Text>
+              {item.expiry_date && (
+                <Text style={styles.cardSubtitle}>
+                  Vencimento: {new Date(item.expiry_date).toLocaleDateString('pt-BR')}
+                </Text>
+              )}
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleDelete(medicine.id)}
+              style={styles.deleteButton}
+              onPress={() => handleDelete(item.id)}
+              disabled={deleteMutation.isPending}
             >
-              <Text style={styles.deleteBtnText}>Deletar</Text>
+              <Text style={styles.deleteButtonText}>Deletar</Text>
             </TouchableOpacity>
           </View>
-        ))}
-      </ScrollView>
+        )}
+      />
     </SafeAreaView>
   );
 }
@@ -112,6 +110,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   addButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 6,
@@ -138,27 +142,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 14,
-  },
-  errorBox: {
-    margin: 16,
-    padding: 12,
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 14,
-  },
-  emptyBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6b7280',
   },
   list: {
     padding: 16,
@@ -192,15 +175,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
   },
-  deleteBtn: {
+  deleteButton: {
     backgroundColor: '#fecaca',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
   },
-  deleteBtnText: {
+  deleteButtonText: {
     color: '#dc2626',
     fontWeight: '600',
     fontSize: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc2626',
+    marginBottom: 12,
+  },
+  retryButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });
