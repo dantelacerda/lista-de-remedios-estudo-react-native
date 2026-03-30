@@ -1,0 +1,64 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "WebFetch(domain:www.lawnstarter.com)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot"
+    ],
+    "additionalDirectories": [
+      "/Users/dantelacerda/projetos/projetos-react/my-app/services"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/dantelacerda/projetos/projetos-react/my-app/.claude/scripts/pre-commit-quality-check.sh",
+            "if": "Bash(git commit*)",
+            "timeout": 60,
+            "statusMessage": "Validando qualidade do código antes do commit..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/dantelacerda/projetos/projetos-react/my-app/.claude/scripts/update-readme-on-commit.sh",
+            "if": "Bash(git commit*)",
+            "timeout": 120,
+            "statusMessage": "Atualizando documentação no README.md...",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "bash /Users/dantelacerda/projetos/projetos-react/my-app/.claude/scripts/smart-pr.sh",
+            "if": "Bash(git push*)",
+            "timeout": 180,
+            "statusMessage": "Gerando Pull Request inteligente...",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"REACT NATIVE SUBAGENT RULE: Use the react-native-dev subagent (Agent tool, subagent_type=react-native-dev) for COMPLEX tasks only: (1) Creating a new screen or full component from scratch, (2) Creating a reusable component used in multiple places, (3) Changes touching 3 or more files simultaneously, (4) Any task involving navigation flow changes (Expo Router). Handle DIRECTLY without subagent: simple bug fixes (1-2 line changes), style/text/color tweaks in existing components, single-file straightforward changes, adding a prop or adjusting existing logic in one place.\"}}'",
+            "statusMessage": "Aplicando contexto React Native..."
+          }
+        ]
+      }
+    ]
+  },
+  "spinnerTipsEnabled": false
+}
