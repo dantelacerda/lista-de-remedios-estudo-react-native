@@ -63,6 +63,19 @@ Cada hook encapsula uma operação e entrega automaticamente os estados `isLoadi
 - **Botão "Deletar"** no card → chama `useDeleteMedicine().mutate(id)`. Após o sucesso, o TanStack Query invalida automaticamente o cache e a lista é atualizada sem recarregar a página.
 - **Botão "+ Adicionar"** → navega para `/add`.
 
+#### Filtros da Tela Inicial
+
+A barra de filtros fica entre o cabeçalho e a lista. Toda a lógica está encapsulada no hook `hooks/useMedicineFilters.ts`.
+
+| Filtro | Como usar |
+|---|---|
+| **Busca por nome** | Digite no campo "Buscar por nome..." — a lista filtra em tempo real (case-insensitive) |
+| **Ordenar por vencimento** | Toque no botão para ciclar: **sem ordem → ↑ mais próximos primeiro → ↓ mais distantes primeiro** |
+| **Limpar filtros** | Aparece automaticamente quando qualquer filtro está ativo; toque para resetar tudo |
+| **Contagem** | Exibe "X de Y remédios" sempre que um filtro está ativo |
+
+> Remédios sem data de vencimento cadastrada aparecem sempre no final quando a ordenação por data está ativa.
+
 ---
 
 ### 4. Tela de Cadastro — `app/add.tsx`
@@ -101,7 +114,8 @@ my-app/
 │   └── medicinesApi.ts      # Funções de fetch para a API REST
 │
 └── hooks/
-    └── useMedicines.ts      # Hooks TanStack Query (cache, loading, mutations)
+    ├── useMedicines.ts      # Hooks TanStack Query (cache, loading, mutations)
+    └── useMedicineFilters.ts # Filtro por nome e ordenação por data de vencimento
 ```
 
 ---
