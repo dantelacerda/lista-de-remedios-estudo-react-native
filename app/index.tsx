@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import DrawerMenu from '@/components/DrawerMenu';
 
 import { useMedicinesList, useDeleteMedicine } from '@/hooks/useMedicines';
 import { useMedicineFilters } from '@/hooks/useMedicineFilters';
@@ -17,6 +21,7 @@ import { Medicine } from '@/services/medicinesApi';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { data: medicines, isLoading, isError, refetch } = useMedicinesList();
   const deleteMutation = useDeleteMedicine();
 
@@ -83,9 +88,19 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
+      <DrawerMenu isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Meus Remédios</Text>
+        <TouchableOpacity
+          onPress={() => setDrawerOpen(true)}
+          style={styles.menuButton}
+          accessibilityLabel="Abrir menu lateral"
+          accessibilityRole="button"
+        >
+          <FontAwesome name="bars" size={22} color="#1f2937" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Minha lista de remédios</Text>
         <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add')}>
           <Text style={styles.addButtonText}>+ Adicionar</Text>
         </TouchableOpacity>
@@ -184,7 +199,13 @@ export default function HomeScreen() {
           </View>
         )}
       />
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Versão {Constants.expoConfig?.version ?? '1.0.0'}
+        </Text>
+      </View>
     </SafeAreaView>
+    </>
   );
 }
 
@@ -210,9 +231,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   title: {
-    fontSize: 24,
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
     fontWeight: '700',
     color: '#1f2937',
+  },
+  menuButton: {
+    padding: 4,
   },
   addButton: {
     backgroundColor: '#16a34a',
@@ -345,6 +371,18 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontWeight: '600',
     fontSize: 12,
+  },
+  footer: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   emptyText: {
     fontSize: 16,
