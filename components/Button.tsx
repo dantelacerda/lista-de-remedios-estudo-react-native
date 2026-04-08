@@ -42,72 +42,77 @@ const Button = React.forwardRef<typeof TouchableOpacity, ButtonProps>(
 
 Button.displayName = 'Button';
 
+const baseButton: ViewStyle = {
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  borderRadius: 8,
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const baseText: TextStyle = {
+  fontSize: 16,
+  fontWeight: '600',
+};
+
+const primaryStyles = StyleSheet.create({
+  button: {
+    ...baseButton,
+    backgroundColor: '#3b82f6',
+  } as ViewStyle,
+  buttonDisabled: {
+    backgroundColor: '#93c5fd',
+  } as ViewStyle,
+  text: {
+    ...baseText,
+    color: '#ffffff',
+  } as TextStyle,
+});
+
+const dangerStyles = StyleSheet.create({
+  button: {
+    ...baseButton,
+    backgroundColor: '#ef4444',
+  } as ViewStyle,
+  buttonDisabled: {
+    backgroundColor: '#fca5a5',
+  } as ViewStyle,
+  text: {
+    ...baseText,
+    color: '#ffffff',
+  } as TextStyle,
+});
+
+const secondaryStyles = StyleSheet.create({
+  button: {
+    ...baseButton,
+    backgroundColor: '#e5e7eb',
+  } as ViewStyle,
+  buttonDisabled: {
+    backgroundColor: '#f3f4f6',
+  } as ViewStyle,
+  text: {
+    ...baseText,
+    color: '#374151',
+  } as TextStyle,
+});
+
+const defaultStyles = StyleSheet.create({
+  button: baseButton,
+  buttonDisabled: { opacity: 0.5 } as ViewStyle,
+  text: baseText,
+});
+
 function getStyles(variant: 'primary' | 'danger' | 'secondary') {
-  const baseButton: ViewStyle = {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  };
-
-  const baseText: TextStyle = {
-    fontSize: 16,
-    fontWeight: '600',
-  };
-
   switch (variant) {
     case 'primary':
-      return StyleSheet.create({
-        button: {
-          ...baseButton,
-          backgroundColor: '#3b82f6',
-        } as ViewStyle,
-        buttonDisabled: {
-          backgroundColor: '#93c5fd',
-        } as ViewStyle,
-        text: {
-          ...baseText,
-          color: '#ffffff',
-        } as TextStyle,
-      });
-
+      return primaryStyles;
     case 'danger':
-      return StyleSheet.create({
-        button: {
-          ...baseButton,
-          backgroundColor: '#ef4444',
-        } as ViewStyle,
-        buttonDisabled: {
-          backgroundColor: '#fca5a5',
-        } as ViewStyle,
-        text: {
-          ...baseText,
-          color: '#ffffff',
-        } as TextStyle,
-      });
-
+      return dangerStyles;
     case 'secondary':
-      return StyleSheet.create({
-        button: {
-          ...baseButton,
-          backgroundColor: '#e5e7eb',
-        } as ViewStyle,
-        buttonDisabled: {
-          backgroundColor: '#f3f4f6',
-        } as ViewStyle,
-        text: {
-          ...baseText,
-          color: '#374151',
-        } as TextStyle,
-      });
-
+      return secondaryStyles;
     default:
-      return StyleSheet.create({
-        button: baseButton,
-        buttonDisabled: { opacity: 0.5 } as ViewStyle,
-        text: baseText,
-      });
+      return defaultStyles;
   }
 }
 

@@ -37,7 +37,7 @@ export function useMedicineFilters(medicines: Medicine[] | undefined): UseMedici
     [nameQuery, dateSort]
   );
 
-  const totalCount = useMemo(() => medicines?.length ?? 0, [medicines]);
+  const totalCount = medicines?.length ?? 0;
 
   const filteredMedicines = useMemo(() => {
     if (!medicines) return [];
@@ -69,7 +69,7 @@ export function useMedicineFilters(medicines: Medicine[] | undefined): UseMedici
     return result;
   }, [medicines, nameQuery, dateSort]);
 
-  const filteredCount = useMemo(() => filteredMedicines.length, [filteredMedicines]);
+  const filteredCount = filteredMedicines.length;
 
   return {
     filteredMedicines,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,37 @@ import { useMedicinesList, useDeleteMedicine } from '@/hooks/useMedicines';
 import { useMedicineFilters } from '@/hooks/useMedicineFilters';
 import { Medicine } from '@/services/medicinesApi';
 
+interface MedicineCardProps {
+  item: Medicine;
+  onDelete: (id: number) => void;
+}
+
+const MedicineCard = memo(function MedicineCard({ item, onDelete }: MedicineCardProps) {
+  const router = useRouter();
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.cardContent}
+        onPress={() => router.push(`/view/${item.id}`)}
+      >
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        {item.expiry_date && (
+          <Text style={styles.cardSubtitle}>
+            Vencimento: {new Date(item.expiry_date).toLocaleDateString('pt-BR')}
+          </Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => onDelete(item.id)}
+      >
+        <Text style={styles.deleteButtonText}>Deletar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 export default function HomeScreen() {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -37,7 +68,7 @@ export default function HomeScreen() {
     totalCount,
   } = useMedicineFilters(medicines);
 
-  function handleDelete(id: number) {
+  const handleDelete = useCallback((id: number) => {
     Alert.alert(
       'Deletar Remédio',
       'Tem certeza que deseja deletar este remédio? Esta ação não pode ser desfeita.',
@@ -57,7 +88,10 @@ export default function HomeScreen() {
         },
       ]
     );
-  }
+  }, [deleteMutation]);
+
+  const handleOpenDrawer = useCallback(() => setDrawerOpen(true), []);
+  const handleNavigateToAdd = useCallback(() => router.push('/add'), [router]);
 
   const sortLabel =
     dateSort === 'asc'
@@ -93,7 +127,7 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => setDrawerOpen(true)}
+          onPress={handleOpenDrawer}
           style={styles.menuButton}
           accessibilityLabel="Abrir menu lateral"
           accessibilityRole="button"
@@ -101,7 +135,7 @@ export default function HomeScreen() {
           <FontAwesome name="bars" size={22} color="#1f2937" />
         </TouchableOpacity>
         <Text style={styles.title}>Minha lista de remédios</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add')}>
+        <TouchableOpacity style={styles.addButton} onPress={handleNavigateToAdd}>
           <Text style={styles.addButtonText}>+ Adicionar</Text>
         </TouchableOpacity>
       </View>
@@ -170,33 +204,17 @@ export default function HomeScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        initialNumToRender={8}
+        updateCellsBatchingPeriod={50}
         ListEmptyComponent={
           <View style={styles.centered}>
             <Text style={styles.emptyText}>Nenhum remédio cadastrado</Text>
           </View>
         }
         renderItem={({ item }: { item: Medicine }) => (
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.cardContent}
-              onPress={() => router.push(`/view/${item.id}`)}
-            >
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              {item.expiry_date && (
-                <Text style={styles.cardSubtitle}>
-                  Vencimento: {new Date(item.expiry_date).toLocaleDateString('pt-BR')}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDelete(item.id)}
-              disabled={deleteMutation.isPending}
-            >
-              <Text style={styles.deleteButtonText}>Deletar</Text>
-            </TouchableOpacity>
-          </View>
+          <MedicineCard item={item} onDelete={handleDelete} />
         )}
       />
       <View style={styles.footer}>
