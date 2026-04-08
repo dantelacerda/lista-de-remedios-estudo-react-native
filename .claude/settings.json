@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push*)",
+            "command": "bash .claude/hooks/notify-team.sh",
+            "timeout": 30,
+            "statusMessage": "Sending team notification..."
+          }
+        ]
+      }
+    ]
+  }
+}
